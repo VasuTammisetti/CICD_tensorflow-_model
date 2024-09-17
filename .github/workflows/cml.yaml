@@ -20,6 +20,10 @@ jobs:
           # Your ML workflow goes here
           pip install -r requirements.txt
           python model.py
+      - name: Install cml dependencies
+        run: |
+          pip install argcomplete
+          pip install cloud-ml-sdk==0.2.12  # Specify the version if necessary
       - name: Install dependencies
         run: |
           pip install cml
