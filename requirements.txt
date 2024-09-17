@@ -1,3 +1,5 @@
-tensorflow
-numpy
+pandas
+sklearn
 matplotlib
+seaborn
+numpy
