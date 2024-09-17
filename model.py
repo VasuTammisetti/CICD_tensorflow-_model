@@ -1,84 +1,102 @@
-import pandas as pd 
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-import matplotlib.pyplot as plt
-import seaborn as sns
+# Import modules and packages
+import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
+
+
+# Functions and procedures
+def plot_predictions(train_data, train_labels, test_data, test_labels, predictions):
+    """
+    Plots training data, test data and compares predictions.
+    """
+    plt.figure(figsize=(6, 5))
+    # Plot training data in blue
+    plt.scatter(train_data, train_labels, c="b", label="Training data")
+    # Plot test data in green
+    plt.scatter(test_data, test_labels, c="g", label="Testing data")
+    # Plot the predictions in red (predictions were made on the test data)
+    plt.scatter(test_data, predictions, c="r", label="Predictions")
+    # Show the legend
+    plt.legend(shadow=True)
+    # Set grids
+    plt.grid(which='major', c='#cccccc', linestyle='--', alpha=0.5)
+    # Some text
+    plt.title('Model Results', fontsize=14)
+    plt.xlabel('X axis values', fontsize=11)
+    plt.ylabel('Y axis values', fontsize=11)
+    # Show
+    plt.savefig('model_results.png', dpi=120)
+
+
+def mae(y_test, y_pred):
+    """
+    Calculates mean absolute error between y_test and y_preds.
+    """
+    return tf.keras.metrics.MeanAbsoluteError()(y_test, y_pred)
+
+
+def mse(y_test, y_pred):
+    """
+    Calculates mean squared error between y_test and y_preds.
+    """
+    return tf.keras.metrics.MeanSquaredError()(y_test, y_pred)
+
+
+# Check Tensorflow version
+print(tf.__version__)
+
+
+# Create features
+X = np.arange(-100, 100, 4)
+
+# Create labels
+y = np.arange(-90, 110, 4)
+
+
+# Split data into train and test sets
+X_train = X[:40] # first 40 examples (80% of data)
+y_train = y[:40]
+
+X_test = X[40:] # last 10 examples (20% of data)
+y_test = y[40:]
+
+
+# Take a single example of X
+input_shape = X[0].shape 
+
+# Take a single example of y
+output_shape = y[0].shape
+
+
 # Set random seed
-seed = 42
+tf.random.set_seed(42)
 
-################################
-########## DATA PREP ###########
-################################
+# Create a model using the Sequential API
+model = tf.keras.Sequential([
+    tf.keras.layers.Input(shape=(1,)),
+    tf.keras.layers.Dense(1), 
+    tf.keras.layers.Dense(1)
+    ])
 
-# Load in the data
-df = pd.read_csv("wine_quality.csv")
+# Compile the model
+model.compile(loss=tf.keras.losses.MeanAbsoluteError(),
+              optimizer=tf.keras.optimizers.SGD(),
+              metrics=['mae'])
 
-# Split into train and test sections
-y = df.pop("quality")
-X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=0.2, random_state=seed)
-
-#################################
-########## MODELLING ############
-#################################
-
-# Fit a model on the train section
-regr = RandomForestRegressor(max_depth=5, random_state=seed)
-regr.fit(X_train, y_train)
-
-# Report training set score
-train_score = regr.score(X_train, y_train) * 100
-# Report test set score
-test_score = regr.score(X_test, y_test) * 100
-
-# Write scores to a file
-with open("metrics.txt", 'w') as outfile:
-        outfile.write("Training variance explained: %2.1f%%\n" % train_score)
-        outfile.write("Test variance explained: %2.1f%%\n" % test_score)
+# Fit the model
+model.fit(X_train, y_train, epochs=100)
 
 
-##########################################
-##### PLOT FEATURE IMPORTANCE ############
-##########################################
-# Calculate feature importance in random forest
-importances = regr.feature_importances_
-labels = df.columns
-feature_df = pd.DataFrame(list(zip(labels, importances)), columns = ["feature","importance"])
-feature_df = feature_df.sort_values(by='importance', ascending=False,)
-
-# image formatting
-axis_fs = 18 #fontsize
-title_fs = 22 #fontsize
-sns.set(style="whitegrid")
-
-ax = sns.barplot(x="importance", y="feature", data=feature_df)
-ax.set_xlabel('Importance',fontsize = axis_fs) 
-ax.set_ylabel('Feature', fontsize = axis_fs)#ylabel
-ax.set_title('Random forest\nfeature importance', fontsize = title_fs)
-
-plt.tight_layout()
-plt.savefig("feature_importance.png",dpi=120) 
-plt.close()
+# Make and plot predictions for model_1
+y_preds = model.predict(X_test)
+plot_predictions(train_data=X_train, train_labels=y_train, test_data=X_test, test_labels=y_test, predictions=y_preds)
 
 
-##########################################
-############ PLOT RESIDUALS  #############
-##########################################
+# Calculate model_1 metrics
+mae_1 = np.round(float(mae(y_test, y_preds.squeeze()).numpy()), 2)
+mse_1 = np.round(float(mse(y_test, y_preds.squeeze()).numpy()), 2)
+print(f'\nMean Absolute Error = {mae_1}, Mean Squared Error = {mse_1}.')
 
-y_pred = regr.predict(X_test) + np.random.normal(0,0.25,len(y_test))
-y_jitter = y_test + np.random.normal(0,0.25,len(y_test))
-res_df = pd.DataFrame(list(zip(y_jitter,y_pred)), columns = ["true","pred"])
-
-ax = sns.scatterplot(x="true", y="pred",data=res_df)
-ax.set_aspect('equal')
-ax.set_xlabel('True wine quality',fontsize = axis_fs) 
-ax.set_ylabel('Predicted wine quality', fontsize = axis_fs)#ylabel
-ax.set_title('Residuals', fontsize = title_fs)
-
-# Make it pretty- square aspect ratio
-ax.plot([1, 10], [1, 10], 'black', linewidth=1)
-plt.ylim((2.5,8.5))
-plt.xlim((2.5,8.5))
-
-plt.tight_layout()
-plt.savefig("residuals.png",dpi=120) 
+# Write metrics to file
+with open('metrics.txt', 'w') as outfile:
+    outfile.write(f'\nMean Absolute Error = {mae_1}, Mean Squared Error = {mse_1}.')
